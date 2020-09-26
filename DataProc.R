@@ -5,7 +5,7 @@ library(data.table)
 library(lubridate)
 library(readr)
 
-years_int <- 1985:1990 #set the relevant years for files
+years_int <- c(1985:1990, 2000:2005) #set the relevant years for files
 
 # create file paths/names
 file_names <-paste("Mex Temp/", years_int, "Tmed.xlsx", sep = "")
@@ -52,19 +52,36 @@ aTemp <- aTemp %>%
 #foreach state, each month, group by state, month, mean(temp)
 #calculate difference between average and measured temp per state per month
 
-temp_calc <- aTemp %>% 
+aTemp <- aTemp %>% 
   group_by(fest, fmeses) %>% 
   mutate(pre2000 = case_when(year < 2000 ~ "base",
-                             year >= 2000 ~ "post"),
-         avgTemp_base =mean(temp_calc$temperature[temp_calc$pre2000 == "base"]),
-         diff = temperature - avgTemp_base
-         )
-
-mean(temp_calc$temperature[temp_calc$pre2000 == "base"])
+                             year >= 2000 ~ "post")
+         ) %>% 
+  ungroup()
 
 
-ggplot(aTemp, aes(x = fest, y = 1, size = temperature, color = temperature)) +
-  geom_point()+
-  facet_wrap(vars(fest))+
-  scale_fill_gradient(low = "blue", high = "red")
+#extract baseline subset df and calculate group (state, month) means
+base <- aTemp %>% 
+  filter(year <2000) %>% 
+  group_by(fest, fmeses) %>% 
+  mutate(avgTemp_base = mean(temperature)
+         ) %>% 
+  select(fest, fmeses, avgTemp_base) %>% 
+  unique()
+
+#rejoin to main data set _ left join
+
+aTemp <- aTemp %>% 
+  left_join(base, by = c("fest","fmeses")) %>% 
+  mutate(
+    diff = temperature - avgTemp_base
+  )
+
+#----------------Visualization--------------------
+
+#remove year factor() when importing all data
+ggplot(aTemp, aes(x = fmeses, y = factor(year),  color = diff)) +
+  geom_point(size = 3)+
+  facet_wrap(vars(fest)) +
+  scale_color_gradient2(low = "blue", high = "red")
 
