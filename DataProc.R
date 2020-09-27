@@ -5,7 +5,7 @@ library(data.table)
 library(lubridate)
 library(readr)
 
-years_int <- c(1985:1990, 2000:2005) #set the relevant years for files
+years_int <- c(1985:2019) #set the relevant years for files
 
 # create file paths/names
 file_names <-paste("Mex Temp/", years_int, "Tmed.xlsx", sep = "")
@@ -40,11 +40,12 @@ meses <- unique(aTemp$month) #ordered levels of the months
 estados <- unique(aTemp$ENTIDAD) # levels for states
 
 #factor month var, with correct levels
-aTemp <- aTemp %>% 
+aTemp<- aTemp %>% 
   mutate(fmeses = factor(month),
          fmeses = fct_relevel(fmeses, meses),
+         num_month = as.numeric(fmeses),
          fest = factor(ENTIDAD, levels = estados)) %>% 
-  select(year, fmeses, fest, temperature)
+  select(year, fmeses, num_month, fest, temperature)
 
 
 
@@ -55,7 +56,8 @@ aTemp <- aTemp %>%
 aTemp <- aTemp %>% 
   group_by(fest, fmeses) %>% 
   mutate(pre2000 = case_when(year < 2000 ~ "base",
-                             year >= 2000 ~ "post")
+                             year >= 2000 ~ "post"),
+         avgTemp_whole = mean(temperature)
          ) %>% 
   ungroup()
 
@@ -79,9 +81,35 @@ aTemp <- aTemp %>%
 
 #----------------Visualization--------------------
 
+#point, semi heat map
 #remove year factor() when importing all data
 ggplot(aTemp, aes(x = fmeses, y = factor(year),  color = diff)) +
-  geom_point(size = 3)+
+  geom_point()+
   facet_wrap(vars(fest)) +
   scale_color_gradient2(low = "blue", high = "red")
 
+
+#spaghetti plots
+
+# -- yearly plots, could play with color, lower alpha
+#what about making a var that groups five year chunks together, so although
+# the spaghetti colors would be "grouped"
+ggplot(aTemp, aes(num_month, y = temperature, color = factor(year))) +
+  geom_line(alpha = 0.4) +
+#  scale_color_brewer(type = "seq", palette = "Spectral") +
+  facet_wrap(vars(fest), scales = "free_y")
+
+
+#--- temp v year, group(color) line
+ggplot(aTemp, aes(year, temperature, color = fmeses)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(se = F)+
+  geom_smooth(color = "blue", size = 1)+
+  facet_wrap(vars(fest), scales = "free_y")
+
+
+ggplot(aTemp, aes(year, diff, color = fmeses)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(se = F, method = "lm")+
+  geom_smooth(color = "blue", size = 1, method = "lm")+
+  facet_wrap(vars(fest))
