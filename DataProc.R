@@ -4,6 +4,9 @@ library(tidyverse)
 library(data.table)
 library(lubridate)
 library(readr)
+library(gganimate)
+#library(ggridges)
+
 
 years_int <- c(1985:2019) #set the relevant years for files
 
@@ -34,7 +37,8 @@ aTemp <- bind_rows(list_dfs, .id = "year")
 #Tidy data, need to result in a long df of state, year, month, temp
 aTemp <- aTemp %>% 
   gather(key = "month", value = "temperature", ENE:ANUAL) %>% 
-  mutate(year = year(as.Date.character(year, "%Y")))
+  mutate(year = as.integer(year(as.Date.character(year, "%Y"))) 
+         )
 
 meses <- unique(aTemp$month) #ordered levels of the months
 estados <- unique(aTemp$ENTIDAD) # levels for states
@@ -107,9 +111,38 @@ ggplot(aTemp, aes(year, temperature, color = fmeses)) +
   geom_smooth(color = "blue", size = 1)+
   facet_wrap(vars(fest), scales = "free_y")
 
+# animated. 
+p <- ggplot(aTemp, aes(fmeses, temperature)) +
+  geom_jitter(alpha = 0.7) +
+  scale_color_viridis_d()+
+  facet_wrap(vars(fest), scales = "free_y")+
+  transition_time(year) +
+  labs(title = "Year: {frame_time}")
+
+animate(p, renderer = gifski_renderer())  
+
 
 ggplot(aTemp, aes(year, diff, color = fmeses)) +
   geom_point(alpha = 0.3) +
   geom_smooth(se = F, method = "lm")+
   geom_smooth(color = "blue", size = 1, method = "lm")+
   facet_wrap(vars(fest))
+
+
+# --------------- RIDGES --------------
+# 
+# nacional_temp <-aTemp %>% 
+#   filter(fest == "NACIONAL" ) 
+# 
+# 
+# ggplot(nacional_temp, aes(fmeses, y = rep(1, 455), # need to understand the y aesthetic
+#                           height = temperature, 
+#                           group = year, 
+#                           color = year))+
+#   geom_ridgeline(alpha = 0.05, fill = "lightblue")
+# 
+# #could try artificially generating the data, with one observation corresponding to one degree (or tenth of a degree?)
+# #of temperature, so the height of the kernel corresponds to the temperature
+# 
+# 
+# test_df <- data.frame(x = 1:12, y = rep(1,10), temp = c(10,13,))
